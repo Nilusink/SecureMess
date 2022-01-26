@@ -62,7 +62,7 @@ def receive_long(receive_from: socket.socket) -> bytes:
             no_rec = 0
 
         if no_rec >= 100:  # if for 100 loops no packages were received, raise connection loss
-            raise socket.error('Failed receiving data - connection loss')
+            raise ConnectionAbortedError("Failed receiving data - connection loss")
 
     return data
 

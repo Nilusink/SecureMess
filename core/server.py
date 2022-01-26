@@ -44,6 +44,8 @@ class User:
         # mark current client as running
         RUNNING_CLIENTS.append(self)
 
+        print(f"Login: {username}")
+
     @property
     def username(self) -> str:
         return self.__username
@@ -72,7 +74,6 @@ class User:
         while self.running:
             try:
                 bytes_mes = receive_long(self.__client)
-                print(0)
 
             except socket.timeout:
                 continue
@@ -82,7 +83,6 @@ class User:
                 return
 
             init_mes: Dict[str, Any] = self.decrypt(bytes_mes)
-            print(f"received {init_mes}")
             # process request
             match init_mes["type"]:
                 case "action":
@@ -91,7 +91,6 @@ class User:
                             self.end()
 
                         case "get_all":
-                            print(f"sending all: {MESSAGES}")
                             self.send({
                                 "type": "request_result",
                                 "request_type": "get_all",
@@ -99,7 +98,11 @@ class User:
                             })
 
                 case "message":
-                    MESSAGES.append(init_mes["message"])
+                    MESSAGES.append({
+                        "message": init_mes["message"],
+                        "time": init_mes["time"],
+                        "user": self.username
+                    })
                     RUNNING_CLIENTS.sendall({
                         "type": "message",
                         "message": init_mes["message"],
@@ -119,6 +122,7 @@ class User:
         """
         :param wait: decides if to wait for the threads to finish (only set false within the thread itself)
         """
+        print(f"Logout: {self.username}")
         with suppress(Exception):
             self.running = False
             self.__pool.shutdown(wait=wait)
@@ -161,6 +165,17 @@ class Clients:
         """
         for client in self.__clients:
             client.send(message)
+
+    def is_online(self, username: str) -> bool:
+        """
+        check if a user with the specified username is online
+
+        :param username: the user to search for
+        """
+        for user in self.__clients:
+            if user.username == username:
+                return True
+        return False
 
     def end(self) -> None:
         """
@@ -229,6 +244,9 @@ class Connection:
             if not init_mes["version"] in self.accepted_versions:
                 client.send(self.__fer.encrypt(json.dumps({"success": False, "reason": "InvalidVersion"}).encode("utf-32")))
                 continue
+
+            if RUNNING_CLIENTS.is_online(init_mes["username"]):
+                client.send(self.__fer.encrypt(json.dumps({"success": False, "reason": "UserOnline"}).encode("utf-32")))
 
             User(client, self.__fer.encrypt, init_mes["username"])
 

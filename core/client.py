@@ -9,6 +9,7 @@ from core import send_long, receive_long, AuthError, Daytime, print_traceback
 
 from cryptography.fernet import Fernet, InvalidToken
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Generator
 from contextlib import suppress
 from traceback import print_exc
 import socket
@@ -16,9 +17,14 @@ import struct
 import json
 
 
+# every users sends a message when joining / leaving, customize them here
+HELLO_MES: str = "Hello there!"
+BYE_MES: str = "Bye!"
+
+
 class Connection:
     protocol_version = "1.0.0"
-    messages: list = []
+    __messages: list = []
     running = True
 
     def __init__(self, ip: str, port: int, username: str, server_secret: bytes | str, clients_secret: bytes | str) -> None:
@@ -65,7 +71,12 @@ class Connection:
         # receive validation message from server
         val = json.loads(self.fer.decrypt(self.__server.recv(2048)).decode("utf-32"))
         if not val["success"]:
-            raise AuthError(f"Error accessing server: {val['reason']}")
+            match val["reason"]:
+                case "UserOnline":
+                    raise NameError("A User with this name is already online, please choose another one")
+
+                case _:
+                    raise AuthError(f"Error accessing server: {val['reason']}")
 
         # create Fernet object with custom key
         self.__fer = Fernet(val["key"].encode())
@@ -78,6 +89,16 @@ class Connection:
             "type": "action",
             "action": "get_all"
         }))
+        self.send_message(HELLO_MES)
+
+    @property
+    def new_messages(self) -> Generator:
+        """
+        yield all new messages
+        """
+        for element in self.__messages.copy():
+            self.__messages.remove(element)
+            yield element
 
     def encrypt(self, message: str | dict) -> bytes:
         """
@@ -88,7 +109,7 @@ class Connection:
         """
         return self.__fer.encrypt(json.dumps(message).encode("utf-32"))
 
-    def decrypt(self, message: bytes) -> str | dict:
+    def decrypt(self, message: bytes) -> Any:
         """
         decrypt a str or dictionary with the client server
 
@@ -125,7 +146,7 @@ class Connection:
             try:
                 byte_mes = receive_long(self.__server)
 
-            except (ConnectionResetError, struct.error, socket.timeout):
+            except (ConnectionResetError, struct.error, socket.timeout, OSError):
                 continue
 
             except Exception:
@@ -138,10 +159,12 @@ class Connection:
                     match message["request_type"]:
                         case "get_all":
                             for mes in message["request_result"]:
-                                print(self.decrypt_client(mes.encode()))
+                                mes["message"] = self.decrypt_client(mes["message"].encode())
+                                self.__messages.append(mes)
 
                 case "message":
-                    print(f"Message from {message['user']}: {self.decrypt_client(message['message'].encode())}")
+                    message["message"] = self.decrypt_client(message['message'].encode())
+                    self.__messages.append(message)
 
     def send_message(self, message: str) -> None:
         """
@@ -161,6 +184,7 @@ class Connection:
         cuts the connection to the server and end all threads
         """
         with suppress(Exception):
+            self.send_message(BYE_MES)
             self.__server.send(self.encrypt({
                 "type": "action",
                 "action": "end"
