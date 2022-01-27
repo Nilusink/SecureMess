@@ -67,7 +67,7 @@ class Window:
     __done_objects: list = []
     __connection: Connection
 
-    def __init__(self, server_ip: str, server_port: int, server_secret: str | bytes, client_secret: str | bytes) -> None:
+    def __init__(self, server_secret: str | bytes, client_secret: str | bytes) -> None:
         """
         Create a gui windows for chatting
 
@@ -75,8 +75,8 @@ class Window:
         :param client_secret: the secret key for the clients
         """
         # save server information
-        self.__server_ip = server_ip
-        self.__server_port = server_port
+        self.__server_ip: str
+        self.__server_port: int
         self.__server_secret = server_secret
         self.__client_secret = client_secret
 
@@ -92,19 +92,35 @@ class Window:
         self.root.title("SecureMess")
         self.root.config(bg=self["bg"])
 
-        # login (username) screen
-        self.__set_size(200, 60)
-
+        # connection screen
+        self.__set_size(200, 150)
         self.login_frame = tk.Frame(self.root, bg=self["bg"])
-        self.login_label_1 = tk.Label(self.login_frame, text="Please enter your Username", fg=self["fg"], bg=self["bg"])
+
+        self.ip_label = tk.Label(self.login_frame, text="Please enter the Server ip", fg=self["fg"], bg=self["bg"])
+        self.ip_entry = ttk.Entry(self.login_frame, width=25)
+
+        self.port_label = tk.Label(self.login_frame, text="Please enter the server port", fg=self["fg"], bg=self["bg"])
+        self.port_entry = ttk.Entry(self.login_frame, width=25)
+        self.port_entry.insert(0, "3333")
+
+        self.login_label = tk.Label(self.login_frame, text="Please enter your Username", fg=self["fg"], bg=self["bg"])
         self.name_entry = ttk.Entry(self.login_frame, width=25)
 
-        self.login_label_1.grid(row=0, column=0)
-        self.name_entry.grid(row=1, column=0)
+        # grid all the stuff
+        self.ip_label.grid(row=0, column=0)
+        self.port_label.grid(row=2, column=0)
+        self.login_label.grid(row=4, column=0)
+
+        self.ip_entry.grid(row=1, column=0)
+        self.port_entry.grid(row=3, column=0)
+        self.name_entry.grid(row=5, column=0)
+
+        self.ip_entry.bind("<Return>", self.try_login)
+        self.port_entry.bind("<Return>", self.try_login)
         self.name_entry.bind("<Return>", self.try_login)
 
-        self.login_invalid_label = tk.Label(self.login_frame, text="", fg=self["error"], bg=self["bg"])
-        self.login_invalid_label.grid(row=2, column=0)
+        self.connection_invalid_label = tk.Label(self.login_frame, text="", fg=self["error"], bg=self["bg"])
+        self.connection_invalid_label.grid(row=6, column=0)
 
         # create main chatting frame
         self.main_frame = tk.Frame(self.root, bg=self["bg"])
@@ -162,8 +178,8 @@ class Window:
         # login frame
         self.root.config(bg=self["bg"])
         self.login_frame.configure(bg=self["bg"])
-        self.login_label_1.configure(bg=self["bg"], fg=self["fg"])
-        self.login_invalid_label.configure(bg=self["bg"], fg=self["error"])
+        self.login_label.configure(bg=self["bg"], fg=self["fg"])
+        self.connection_invalid_label.configure(bg=self["bg"], fg=self["error"])
 
         # main frame
         self.main_frame.config(bg=self["bg"])
@@ -200,16 +216,31 @@ class Window:
         """
         name = self.name_entry.get()
         if not name:
-            self.login_invalid_label["text"] = "Please enter a username"
-            self.root.after(800, lambda: self.login_invalid_label.config(text=""))
+            self.connection_invalid_label["text"] = "Please enter a username"
+            self.root.after(800, lambda: self.connection_invalid_label.config(text=""))
             return
 
         try:
-            self.__connection = Connection(ip=self.__server_ip, port=self.__server_port, username=name, server_secret=self.__server_secret, clients_secret=self.__client_secret)
+            self.__connection = Connection(ip=self.ip_entry.get(), port=int(self.port_entry.get()), username=name, server_secret=self.__server_secret, clients_secret=self.__client_secret)
 
         except NameError:
-            self.login_invalid_label["text"] = "User already logged in"
-            self.root.after(800, lambda: self.login_invalid_label.config(text=""))
+            self.connection_invalid_label["text"] = "User already logged in"
+            self.root.after(800, lambda: self.connection_invalid_label.config(text=""))
+            return
+
+        except ValueError:
+            self.connection_invalid_label["text"] = "Invalid Port"
+            self.root.after(800, lambda: self.connection_invalid_label.config(text=""))
+            return
+
+        except ConnectionRefusedError:
+            self.connection_invalid_label["text"] = "Wrong IP / Server (program) down"
+            self.root.after(1500, lambda: self.connection_invalid_label.config(text=""))
+            return
+
+        except ConnectionError:
+            self.connection_invalid_label["text"] = "Invalid IP / Server (computer) down"
+            self.root.after(1500, lambda: self.connection_invalid_label.config(text=""))
             return
 
         # switch to main chat frame
@@ -261,5 +292,5 @@ class Window:
 
 if __name__ == '__main__':
     secrets = json.load(open("config.json", "r"))
-    w = Window("127.0.0.1", 3333, secrets["server_secret"], secrets["client_secret"])
+    w = Window(secrets["server_secret"], secrets["client_secret"])
     w.run()

@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Dict, Any, List
 from contextlib import suppress
 import socket
+import struct
 import json
 
 
@@ -75,7 +76,7 @@ class User:
             try:
                 bytes_mes = receive_long(self.__client)
 
-            except socket.timeout:
+            except (socket.timeout, struct.error):
                 continue
 
             except (ConnectionResetError, ConnectionAbortedError):
@@ -209,7 +210,7 @@ class Connection:
         # create the socket object
         self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.__server.bind(("127.0.0.1", port))
+        self.__server.bind(("0.0.0.0", port))
         self.__server.settimeout(.5)
         self.__server.listen()
 
@@ -243,10 +244,13 @@ class Connection:
             # validating version
             if not init_mes["version"] in self.accepted_versions:
                 client.send(self.__fer.encrypt(json.dumps({"success": False, "reason": "InvalidVersion"}).encode("utf-32")))
+                client.close()
                 continue
 
             if RUNNING_CLIENTS.is_online(init_mes["username"]):
                 client.send(self.__fer.encrypt(json.dumps({"success": False, "reason": "UserOnline"}).encode("utf-32")))
+                client.close()
+                continue
 
             User(client, self.__fer.encrypt, init_mes["username"])
 

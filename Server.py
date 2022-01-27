@@ -14,13 +14,13 @@ secret = json.load(open("config.json", "r"))["server_secret"]
 serv = Connection(port=3333, server_secret=secret)
 
 
-def term_func() -> None:
+def term_func(*sign) -> None:
     """
     called when terminating / ending the server
     """
     print("shutting down server...")
     s.end()
-    sys.exit(0)
+    sys.exit(sign[0])
 
 
 # set signals to trigger term_func
