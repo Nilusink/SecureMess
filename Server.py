@@ -19,7 +19,7 @@ def term_func(*sign) -> None:
     called when terminating / ending the server
     """
     print("shutting down server...")
-    s.end()
+    serv.end()
     sys.exit(sign[0])
 
 
