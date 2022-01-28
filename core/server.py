@@ -117,7 +117,11 @@ class User:
 
         :param message: the message to send
         """
-        send_long(self.__client, self.encrypt(message))
+        try:
+            send_long(self.__client, self.encrypt(message))
+
+        except ConnectionAbortedError:
+            self.end()
 
     def end(self, wait: bool = True) -> None:
         """

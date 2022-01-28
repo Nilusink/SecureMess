@@ -1,10 +1,11 @@
 """
-Version 1.0.0
-Write and receive messages
+Version 1.0.2
+Write and receive messages (GUI)
 
 Author:
 Nilusink
 """
+from core import InvalidSecret
 from core.client import *
 from tkinter import ttk
 from typing import Dict
@@ -238,9 +239,14 @@ class Window:
             self.root.after(1500, lambda: self.connection_invalid_label.config(text=""))
             return
 
-        except ConnectionError:
+        except (ConnectionError, TimeoutError):
             self.connection_invalid_label["text"] = "Invalid IP / Server (computer) down"
             self.root.after(1500, lambda: self.connection_invalid_label.config(text=""))
+            return
+
+        except InvalidSecret:
+            self.connection_invalid_label["text"] = "Server-Secret Wrong!"
+            self.root.after(1000, lambda: self.connection_invalid_label.config(text=""))
             return
 
         # switch to main chat frame

@@ -1,4 +1,4 @@
-# docker file for Server (no client since GUI's are shitty to run in docker)
+# docker file for Server AND Client
 FROM python:3.10.0
 
 WORKDIR /usr/src/app/
@@ -16,13 +16,21 @@ USER docker
 # installing requirements
 COPY ./core/ ./core/
 COPY docker_config.json ./config.json
-COPY ./Server.py ./
 COPY ./requirements.txt ./
+
+# for server
+COPY ./Server.py ./
+
+# for client
+#COPY ./Client_noGUI.py ./
 
 RUN sudo apt-get upgrade -y
 RUN sudo apt-get install python-dev -y
 RUN sudo pip install --no-cache-dir -r requirements.txt
 
 # execute command
-# for client
+# for server
 CMD [ "python", "./Server.py" ]
+
+# for client
+#CMD [ "python", "./Client_noGUI.py"]

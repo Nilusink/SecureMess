@@ -257,3 +257,8 @@ class Daytime:
                 self.second = 0
             case _:
                 raise ValueError(f"{item} is not a valid variable!")
+
+
+# error classes
+class InvalidSecret(BaseException):
+    pass

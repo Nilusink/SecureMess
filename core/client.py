@@ -5,7 +5,7 @@ Helper for GUI application, handles server communication
 Author:
 Nilusink
 """
-from core import send_long, receive_long, AuthError, Daytime, print_traceback
+from core import send_long, receive_long, AuthError, Daytime, print_traceback, InvalidSecret
 
 from cryptography.fernet import Fernet, InvalidToken
 from concurrent.futures import ThreadPoolExecutor
@@ -40,14 +40,14 @@ class Connection:
         try:
             self.fer = Fernet(server_secret)
 
-        except InvalidToken:
-            raise ValueError("Server secret not valid")
+        except (InvalidToken, ValueError):
+            raise InvalidSecret("Server secret not valid")
 
         try:
             self.__clients_fer = Fernet(clients_secret)
 
-        except InvalidToken:
-            raise ValueError("Clients secret not valid")
+        except (InvalidToken, ValueError):
+            raise InvalidSecret("Clients secret not valid")
 
         # create the socket object
         self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
