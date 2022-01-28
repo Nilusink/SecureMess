@@ -5,7 +5,6 @@ Write and receive messages (GUI)
 Author:
 Nilusink
 """
-from core import InvalidSecret
 from core.client import *
 from tkinter import ttk
 from typing import Dict

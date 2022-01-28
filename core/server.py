@@ -10,13 +10,39 @@ from core import send_long, receive_long, print_traceback, key_func
 from cryptography.fernet import Fernet, InvalidToken
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Dict, Any, List
+from types import ModuleType, FunctionType
 from contextlib import suppress
+from gc import get_referents
 import socket
 import struct
 import json
+import sys
 
+
+BLACKLIST = type, ModuleType, FunctionType
 
 MESSAGES: list = []
+MAX_MESS_LIST_SIZE: int = 1_000_000  # in bytes, recommended to keep at a reasonable size, not too small
+
+
+def getsize(obj):
+    """
+    sum size of object & members.
+    """
+    if isinstance(obj, BLACKLIST):
+        raise TypeError('getsize() does not take argument of type: ' + str(type(obj)))
+    seen_ids = set()
+    size = 0
+    objects = [obj]
+    while objects:
+        need_referents = []
+        for obj in objects:
+            if not isinstance(obj, BLACKLIST) and id(obj) not in seen_ids:
+                seen_ids.add(id(obj))
+                size += sys.getsizeof(obj)
+                need_referents.append(obj)
+        objects = get_referents(*need_referents)
+    return size
 
 
 class User:
@@ -111,6 +137,10 @@ class User:
                         "user": self.username
                     })
 
+                    # if the message list gets to big, delete a few elements
+                    while getsize(MESSAGES) > MAX_MESS_LIST_SIZE:
+                        MESSAGES.pop(0)
+
     def send(self, message: dict) -> None:
         """
         send a message to the client
@@ -129,12 +159,9 @@ class User:
         """
         print(f"Logout: {self.username}")
         with suppress(Exception):
+            RUNNING_CLIENTS.remove(self)
             self.running = False
             self.__pool.shutdown(wait=wait)
-            RUNNING_CLIENTS.remove(self)
-
-    def __del__(self) -> None:
-        self.end()
 
 
 class Clients:

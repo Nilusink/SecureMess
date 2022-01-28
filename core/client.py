@@ -18,8 +18,8 @@ import json
 
 
 # every users sends a message when joining / leaving, customize them here
-HELLO_MES: str = "Hello there!"
-BYE_MES: str = "Bye!"
+HELLO_MES: str = "Joined!"
+BYE_MES: str = "Left!"
 
 
 class Connection:
