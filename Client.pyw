@@ -1,5 +1,5 @@
 """
-Version 1.0.3
+Version 1.0.4
 Write and receive messages (GUI)
 
 Author:
@@ -41,14 +41,14 @@ class ChatBox:
 
         height = 40 + 24 * lines
 
-        forTime = sent_time
+        for_time = sent_time
 
         r.grid_columnconfigure(0, weight=1)
         self.canvas = tk.Canvas(master=r, borderwidth=5, bg='gray', height=height, width=1000)
         self.canvas.create_text(20, 20, fill="black", font="mono 15", text=message, anchor=tk.NW)
         self.canvas.create_text(20, height - 20, fill="black", font="mono 10", text=sent_by,
                                 anchor=tk.NW)
-        self.canvas.create_text(900, height - 20, fill="black", font="mono 10", text=forTime, anchor=tk.NW)
+        self.canvas.create_text(900, height - 20, fill="black", font="mono 10", text=for_time, anchor=tk.NW)
 
     def pack(self, *args, **kwargs):
         self.canvas.pack(*args, expand=True, fill='x', anchor=tk.NW, **kwargs)
@@ -80,6 +80,9 @@ class Window:
         self.__server_port: int
         self.__server_secret = server_secret
         self.__client_secret = client_secret
+
+        # later used variables
+        self.__unread_messages: list[dict] = []
 
         # GUI color config
         self.__colors: Dict[str, str] = {
@@ -156,6 +159,10 @@ class Window:
         """
         return self.__colors
 
+    @property
+    def unread_messages(self) -> list[dict]:
+        return self.__unread_messages
+
     def color_config(self, color_type: str, color: str) -> str:
         """
         set one color
@@ -222,7 +229,10 @@ class Window:
             return
 
         try:
-            self.__connection = Connection(ip=self.ip_entry.get(), port=int(self.port_entry.get()), username=name, server_secret=self.__server_secret, clients_secret=self.__client_secret)
+            self.__connection = Connection(
+                ip=self.ip_entry.get(), port=int(self.port_entry.get()), username=name,
+                server_secret=self.__server_secret, clients_secret=self.__client_secret
+            )
 
         except NameError:
             self.connection_invalid_label["text"] = "User already logged in"
@@ -271,15 +281,19 @@ class Window:
 
             # if the window is not focused, send a notification
             if not self.root.focus_get():
-                users = {message["user"] for message in updated_messages}
-                title = f"{len(updated_messages)} new message(s) from {len(users)} chat(s)"
-                notify = "\n".join(f"{message['user']}: {message['message']}" for message in updated_messages)
+                self.__unread_messages += updated_messages
+                users = {message["user"] for message in self.unread_messages}
+                title = f"{len(self.unread_messages)} unread message(s) from {len(users)} user(s)"
+                notify = "\n".join(f"{message['user']}: {message['message']}" for message in self.unread_messages)
 
                 notification.notify(
                     title=title,
                     message=notify,
                     app_name="SecureMess"
                 )
+
+        if self.root.focus_get():
+            self.unread_messages.clear()
 
         self.root.after(200, self.__update_messages)
 
