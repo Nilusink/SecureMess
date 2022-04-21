@@ -1,10 +1,11 @@
 """
-Version 1.0.2
+Version 1.0.3
 Write and receive messages (GUI)
 
 Author:
 Nilusink
 """
+from plyer import notification
 from core.client import *
 from tkinter import ttk
 from typing import Dict
@@ -258,15 +259,27 @@ class Window:
         """
         check if there are new messages
         """
-        was_an_update: bool = False
+        updated_messages: list[dict] = []
         for message in self.__connection.new_messages:
             if message not in self.__done_messages:
-                was_an_update = True
+                updated_messages.append(message)
                 self.messages_frame.insert(tk.END, f"{message['user']}>> {message['message']}")
                 self.__done_messages.append(message)
 
-        if was_an_update:
+        if updated_messages:
             self.messages_frame.yview(tk.END)
+
+            # if the window is not focused, send a notification
+            if not self.root.focus_get():
+                users = {message["user"] for message in updated_messages}
+                title = f"{len(updated_messages)} new message(s) from {len(users)} chat(s)"
+                notify = "\n".join(f"{message['user']}: {message['message']}" for message in updated_messages)
+
+                notification.notify(
+                    title=title,
+                    message=notify,
+                    app_name="SecureMess"
+                )
 
         self.root.after(200, self.__update_messages)
 
